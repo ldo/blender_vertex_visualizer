@@ -92,7 +92,7 @@ def draw_vertex_info(context) :
         gl.Enable(GL.BLEND)
         blf.size(font_id, 12, dpi)
         if context.window_manager.vertex_vis_show_faces :
-            gl.Color4f(1, 1, 0, 1) # for now
+            gl.Color4f(0.66, 0.75, 0.37, 1)
             for f in mesh.polygons :
                 pos = pos_2d(f.center)
                 blf.position(font_id, pos.x, pos.y, 0)
@@ -100,7 +100,7 @@ def draw_vertex_info(context) :
             #end for
         #end if
         if context.window_manager.vertex_vis_show_edges :
-            gl.Color4f(0, 1, 1, 1) # for now
+            gl.Color4f(0.25, 0.63, 0.75, 1)
             for e in mesh.edges :
                 pos = pos_2d((mesh.vertices[e.vertices[0]].co + mesh.vertices[e.vertices[1]].co) / 2)
                 blf.position(font_id, pos.x, pos.y, 0)
@@ -108,7 +108,7 @@ def draw_vertex_info(context) :
             #end for
         #end if
         if context.window_manager.vertex_vis_show_verts :
-            gl.Color4f(0, 1, 0, 1) # for now
+            gl.Color4f(0.56, 0.75, 0.56, 1)
             for v in mesh.vertices :
                 pos = pos_2d(v.co)
                 blf.position(font_id, pos.x, pos.y, 0)

@@ -7,6 +7,7 @@
 import sys # debug
 import types
 import bpy
+import mathutils
 import bgl
 import blf
 from bpy_extras import \
@@ -16,7 +17,7 @@ bl_info = \
     {
         "name" : "Vertex Visualizer",
         "author" : "Lawrence D'Oliveiro <ldo@geek-central.gen.nz>",
-        "version" : (0, 2),
+        "version" : (0, 3),
         "blender" : (2, 7, 8),
         "location" : "View 3D > Object Mode > Properties Shelf",
         "description" :
@@ -71,6 +72,32 @@ del gen_gl # your work is done
 #-
 
 def draw_vertex_info(context) :
+
+    font_id = 0
+    dpi = 72
+
+    region = context.region
+    view3d = context.space_data.region_3d
+    pos_2d = lambda v : \
+        view3d_utils.location_3d_to_region_2d(region, view3d, obj.matrix_world * v)
+    xform = view3d.perspective_matrix
+    xlate = xform.translation
+
+    def face_visible(face) :
+        # face is a MeshPolygon; checks if it is oriented toward the camera.
+        # fixme: not quite right for perspective view, OK for orthographic view.
+        orient = xform * face.normal - xlate
+        return \
+            orient.z < 0
+    #end face_visible
+
+    def draw_label(coords, text) :
+        pos = pos_2d(coords)
+        blf.position(font_id, pos.x, pos.y, 0)
+        blf.draw(font_id, text)
+    #end draw_label
+
+#begin draw_vertex_info
     obj = context.object
     if (
             context.area.type == "VIEW_3D"
@@ -82,37 +109,71 @@ def draw_vertex_info(context) :
         and
             type(obj.data) == bpy.types.Mesh
     ) :
-        region = context.region
-        view3d = context.space_data.region_3d
-        pos_2d = lambda v : \
-            view3d_utils.location_3d_to_region_2d(region, view3d, obj.matrix_world * v)
         mesh = obj.data
-        font_id = 0
-        dpi = 72
         gl.Enable(GL.BLEND)
         blf.size(font_id, 12, dpi)
         if context.window_manager.vertex_vis_show_faces :
             gl.Color4f(0.66, 0.75, 0.37, 1)
             for f in mesh.polygons :
-                pos = pos_2d(f.center)
-                blf.position(font_id, pos.x, pos.y, 0)
-                blf.draw(font_id, "f%d" % f.index)
+                if context.window_manager.vertex_vis_show_backface or face_visible(f) :
+                    draw_label(f.center, "f%d" % f.index)
+                #end if
             #end for
         #end if
         if context.window_manager.vertex_vis_show_edges :
+            if not context.window_manager.vertex_vis_show_backface :
+                edge_faces = {}
+                for f in mesh.polygons :
+                    for e in f.edge_keys :
+                        if e not in edge_faces :
+                            edge_faces[e] = set()
+                        #end if
+                        edge_faces[e].add(f.index)
+                    #end for
+                #end for
+            else :
+                edge_faces = None
+            #end if
             gl.Color4f(0.25, 0.63, 0.75, 1)
             for e in mesh.edges :
-                pos = pos_2d((mesh.vertices[e.vertices[0]].co + mesh.vertices[e.vertices[1]].co) / 2)
-                blf.position(font_id, pos.x, pos.y, 0)
-                blf.draw(font_id, "e%d" % e.index)
+                if (
+                    context.window_manager.vertex_vis_show_backface
+                or
+                    any(face_visible(mesh.polygons[f]) for f in edge_faces[tuple(e.vertices)])
+                ) :
+                    draw_label \
+                      (
+                            (mesh.vertices[e.vertices[0]].co + mesh.vertices[e.vertices[1]].co)
+                        /
+                            2,
+                        "e%d" % e.index
+                      )
+                #end if
             #end for
         #end if
         if context.window_manager.vertex_vis_show_verts :
+            if not context.window_manager.vertex_vis_show_backface :
+                vert_faces = {}
+                for f in mesh.polygons :
+                    for v in f.vertices :
+                        if v not in vert_faces :
+                            vert_faces[v] = set()
+                        #end if
+                        vert_faces[v].add(f.index)
+                    #end for
+                #end for
+            else :
+                vert_faces = None
+            #end if
             gl.Color4f(0.56, 0.75, 0.56, 1)
             for v in mesh.vertices :
-                pos = pos_2d(v.co)
-                blf.position(font_id, pos.x, pos.y, 0)
-                blf.draw(font_id, "v%d" % v.index)
+                if (
+                    context.window_manager.vertex_vis_show_backface
+                or
+                    any(face_visible(mesh.polygons[f]) for f in vert_faces[v.index])
+                ) :
+                    draw_label(v.co, "v%d" % v.index)
+                #end if
             #end for
         #end if
         gl.Disable(GL.BLEND)
@@ -123,7 +184,7 @@ def draw_vertex_info(context) :
 def add_props(self, context) :
     the_col = self.layout.column(align = True) # gives a nicer grouping of my items
     the_col.label("Vertex Visualizer:")
-    for propsuffix in ("verts", "edges", "faces") :
+    for propsuffix in ("verts", "edges", "faces", "backface") :
         the_col.prop \
           (
             context.window_manager,
@@ -140,12 +201,12 @@ def add_props(self, context) :
             "POST_PIXEL" # event type
           )
         context.area.tag_redraw()
-        sys.stderr.write("Vertex Visualizer: draw handler initially installed.\n") # debug
+        sys.stderr.write("Vertex Visualizer: draw handler installed.\n") # debug
     #end if
 #end add_props
 
 def register():
-    for propsuffix in ("verts", "edges", "faces") :
+    for propsuffix in ("verts", "edges", "faces", "backface") :
         propname = "vertex_vis_show_%s" % propsuffix
         setattr \
           (
@@ -159,12 +220,18 @@ def register():
 
 def unregister() :
     bpy.types.VIEW3D_PT_view3d_display.remove(add_props)
-    if bpy.types.WindowManager._vertex_vis_draw_handler != None :
-        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.WindowManager._vertex_vis_draw_handler, "WINDOW")
-        bpy.types.WindowManager._vertex_vis_draw_handler = None
+    if hasattr(bpy.types.WindowManager, "_vertex_vis_draw_handler") :
+        if bpy.types.WindowManager._vertex_vis_draw_handler != None :
+            bpy.types.SpaceView3D.draw_handler_remove \
+              (
+                bpy.types.WindowManager._vertex_vis_draw_handler,
+                "WINDOW" # region type
+              )
+        #end if
+        del bpy.types.WindowManager._vertex_vis_draw_handler
     #end if
     sys.stderr.write("Vertex Visualizer: draw handler uninstalled.\n") # debug
-    for propsuffix in ("verts", "edges", "faces") :
+    for propsuffix in ("verts", "edges", "faces", "backface") :
         try :
             delattr(bpy.types.WindowManager, "vertex_vis_show_%s" % propsuffix)
         except AttributeError :

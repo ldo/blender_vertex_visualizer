@@ -120,74 +120,6 @@ def draw_vertex_info(context) :
     #end if
 #end draw_vertex_info
 
-class VertexVisControl(bpy.types.Operator) :
-    bl_idname = "mesh.vertex_visualizer_control"
-    bl_label = "Vertex Visualizer Control"
-    bl_description = "Just a place to keep the custom viewport drawing callback"
-    bl_space_type = "VIEW_3D"
-
-    _draw_handler = None # keep ref to last-installed draw handler
-
-    @property
-    def displaying(self) :
-        # only referenced in unused methods
-        return \
-            self._draw_handler != None
-    #end displaying
-
-    def install_draw_handler(self, context) :
-        # only referenced in unused method
-        type(self)._draw_handler = bpy.types.SpaceView3D.draw_handler_add \
-          (
-            draw_vertex_info, # func
-            (context,), # args
-            "WINDOW", # region type
-            "POST_PIXEL" # event type
-          )
-        sys.stderr.write("Vertex Visualizer: draw handler installed.\n") # debug
-    #end install_draw_handler
-
-    @classmethod
-    def uninstall_draw_handler(celf) :
-        if celf._draw_handler != None :
-            bpy.types.SpaceView3D.draw_handler_remove(celf._draw_handler, "WINDOW")
-            celf._draw_handler = None
-        #end if
-        sys.stderr.write("Vertex Visualizer: draw handler uninstalled.\n") # debug
-    #end uninstall_draw_handler
-
-    @classmethod
-    def poll(celf, context) :
-        # unneeded?
-        return \
-            context.area.type == "VIEW_3D" and context.mode == "OBJECT"
-    #end poll
-
-    def draw(self, context) :
-        # unused
-        layout = self.layout
-        box = layout.box()
-        box.operator \
-          (
-            "mesh.vertex_visualizer_control",
-            text = ("Display Vertex Info", "Hide Vertex Info")[self.displaying]
-          )
-    #end draw
-
-    def execute(self, context) :
-        # unused
-        if not self.displaying :
-            self.install_draw_handler(context)
-        else :
-            self.uninstall_draw_handler()
-        #end if
-        context.area.tag_redraw()
-        return \
-            {"FINISHED"}
-    #end execute
-
-#end VertexVisControl
-
 def add_props(self, context) :
     the_col = self.layout.column(align = True) # gives a nicer grouping of my items
     the_col.label("Vertex Visualizer:")
@@ -199,8 +131,8 @@ def add_props(self, context) :
             "Show %s" % propsuffix.title()
           )
     #end for
-    if VertexVisControl._draw_handler == None :
-        VertexVisControl._draw_handler = bpy.types.SpaceView3D.draw_handler_add \
+    if not hasattr(bpy.types.WindowManager, "_vertex_vis_draw_handler") or bpy.types.WindowManager._vertex_vis_draw_handler == None :
+        bpy.types.WindowManager._vertex_vis_draw_handler = bpy.types.SpaceView3D.draw_handler_add \
           (
             draw_vertex_info, # func
             (context,), # args
@@ -222,14 +154,16 @@ def register():
             bpy.props.BoolProperty(name = propname, default = False)
           )
     #end for
-    bpy.utils.register_class(VertexVisControl)
     bpy.types.VIEW3D_PT_view3d_display.append(add_props)
 #end register
 
 def unregister() :
     bpy.types.VIEW3D_PT_view3d_display.remove(add_props)
-    VertexVisControl.uninstall_draw_handler()
-    bpy.utils.unregister_class(VertexVisControl)
+    if bpy.types.WindowManager._vertex_vis_draw_handler != None :
+        bpy.types.SpaceView3D.draw_handler_remove(bpy.types.WindowManager._vertex_vis_draw_handler, "WINDOW")
+        bpy.types.WindowManager._vertex_vis_draw_handler = None
+    #end if
+    sys.stderr.write("Vertex Visualizer: draw handler uninstalled.\n") # debug
     for propsuffix in ("verts", "edges", "faces") :
         try :
             delattr(bpy.types.WindowManager, "vertex_vis_show_%s" % propsuffix)

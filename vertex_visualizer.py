@@ -200,7 +200,7 @@ def add_props(self, context) :
             "WINDOW", # region type
             "POST_PIXEL" # event type
           )
-        context.area.tag_redraw()
+        #context.area.tag_redraw() # unneeded
         sys.stderr.write("Vertex Visualizer: draw handler installed.\n") # debug
     #end if
 #end add_props

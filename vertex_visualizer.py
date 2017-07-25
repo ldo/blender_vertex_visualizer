@@ -87,6 +87,7 @@ def draw_vertex_info(context) :
         # face is a MeshPolygon; checks if it is oriented toward the camera.
         # fixme: not quite right for perspective view, OK for orthographic view.
         orient = xform * face.normal - xlate
+        #sys.stderr.write("face %d normal %s transforms to %s\n" % (face.index, face.normal, orient)) # debug
         return \
             orient.z < 0
     #end face_visible

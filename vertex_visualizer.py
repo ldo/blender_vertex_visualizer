@@ -201,7 +201,6 @@ def add_props(self, context) :
             "POST_PIXEL" # event type
           )
         #context.area.tag_redraw() # unneeded
-        sys.stderr.write("Vertex Visualizer: draw handler installed.\n") # debug
     #end if
 #end add_props
 
@@ -230,7 +229,6 @@ def unregister() :
         #end if
         del bpy.types.WindowManager._vertex_vis_draw_handler
     #end if
-    sys.stderr.write("Vertex Visualizer: draw handler uninstalled.\n") # debug
     for propsuffix in ("verts", "edges", "faces", "backface") :
         try :
             delattr(bpy.types.WindowManager, "vertex_vis_show_%s" % propsuffix)

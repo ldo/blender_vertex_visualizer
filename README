@@ -1,0 +1,18 @@
+I wrote this addon in the process of trying to debug another one.
+Programmatically constructing a mesh, and keeping track of which
+vertices to connect together into faces, became quite confusing, so I
+decided it would be helpful if you could see the indices in the
+various arrays displayed for the mesh directly in Blender’s 3D
+viewport.
+
+When installed and enabled, you will see a group of additional
+checkboxes at the bottom of the Display panel in the Properties Shelf
+at the side of the 3D viewport: “Show Verts”, “Show Edges”, “Show
+Faces” and “Show Backface”. The first three control the display of
+labels for vertices, edges and faces in the mesh respectively; the
+last one controls where these are shown for faces oriented away from
+the view. The display appears when a mesh object is active in both
+Object and Edit modes.
+
+Lawrence D'Oliveiro <ldo@geek-central.gen.nz>
+2017 August 4

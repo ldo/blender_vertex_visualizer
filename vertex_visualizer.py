@@ -2,6 +2,9 @@
 # This Blender addon displays information about a mesh that
 # can be useful in debugging mesh-construction code, namely
 # the indexes of the vertices and attached edges and faces.
+#
+# Copyright 2017 by Lawrence D'Oliveiro <ldo@geek-central.gen.nz>.
+# Licensed under CC-BY-SA <http://creativecommons.org/licenses/by-sa/4.0/>.
 #-
 
 import sys # debug

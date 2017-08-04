@@ -7,6 +7,7 @@
 import sys # debug
 import types
 import bpy
+import bmesh
 import mathutils
 import bgl
 import blf
@@ -17,9 +18,9 @@ bl_info = \
     {
         "name" : "Vertex Visualizer",
         "author" : "Lawrence D'Oliveiro <ldo@geek-central.gen.nz>",
-        "version" : (0, 3),
+        "version" : (0, 4),
         "blender" : (2, 7, 8),
-        "location" : "View 3D > Object Mode > Properties Shelf",
+        "location" : "View 3D > Properties Shelf",
         "description" :
             "Shows information about a mesh that can be useful in"
             " debugging mesh-construction code, namely the indexes"
@@ -84,7 +85,7 @@ def draw_vertex_info(context) :
     xlate = xform.translation
 
     def face_visible(face) :
-        # face is a MeshPolygon; checks if it is oriented toward the camera.
+        # face is a BMFace; checks if it is oriented toward the camera.
         # fixme: not quite right for perspective view, OK for orthographic view.
         orient = xform * face.normal - xlate
         #sys.stderr.write("face %d normal %s transforms to %s\n" % (face.index, face.normal, orient)) # debug
@@ -100,32 +101,53 @@ def draw_vertex_info(context) :
 
 #begin draw_vertex_info
     obj = context.object
+    meshb = None # to begin with
     if (
             context.area.type == "VIEW_3D"
-        and
-            context.mode == "OBJECT"
-              # cannot keep track of edits in edit mode, so restrict to object mode
         and
             obj != None
         and
             type(obj.data) == bpy.types.Mesh
     ) :
         mesh = obj.data
+        if context.mode == "EDIT_MESH" :
+            meshb = bmesh.from_edit_mesh(mesh)
+        elif context.mode == "OBJECT" :
+            meshb = bmesh.new()
+            meshb.from_mesh(mesh)
+        #end if
+    #end if
+    if meshb != None :
         gl.Enable(GL.BLEND)
         blf.size(font_id, 12, dpi)
+        label_colours = \
+            {
+                "face" : (0.66, 0.75, 0.37, 1),
+                "edge" : (0.25, 0.63, 0.75, 1),
+                "vert" : (0.56, 0.75, 0.56, 1),
+            }
+        meshb.faces.index_update()
+        meshb.edges.index_update()
+        meshb.verts.index_update()
+          # do I need these?
+        meshb.faces.ensure_lookup_table()
+        meshb.edges.ensure_lookup_table()
+        meshb.verts.ensure_lookup_table()
+          # seems I need these
         if context.window_manager.vertex_vis_show_faces :
-            gl.Color4f(0.66, 0.75, 0.37, 1)
-            for f in mesh.polygons :
+            gl.Color4f(*label_colours["face"])
+            for f in meshb.faces :
                 if context.window_manager.vertex_vis_show_backface or face_visible(f) :
-                    draw_label(f.center, "f%d" % f.index)
+                    draw_label(f.calc_center_median(), "f%d" % f.index)
                 #end if
             #end for
         #end if
         if context.window_manager.vertex_vis_show_edges :
             if not context.window_manager.vertex_vis_show_backface :
                 edge_faces = {}
-                for f in mesh.polygons :
-                    for e in f.edge_keys :
+                for f in meshb.faces :
+                    for e in f.edges :
+                        e = e.index
                         if e not in edge_faces :
                             edge_faces[e] = set()
                         #end if
@@ -135,16 +157,16 @@ def draw_vertex_info(context) :
             else :
                 edge_faces = None
             #end if
-            gl.Color4f(0.25, 0.63, 0.75, 1)
-            for e in mesh.edges :
+            gl.Color4f(*label_colours["edge"])
+            for e in meshb.edges :
                 if (
-                    context.window_manager.vertex_vis_show_backface
-                or
-                    any(face_visible(mesh.polygons[f]) for f in edge_faces[tuple(e.vertices)])
+                        context.window_manager.vertex_vis_show_backface
+                    or
+                        any(face_visible(meshb.faces[f]) for f in edge_faces[e.index])
                 ) :
                     draw_label \
                       (
-                            (mesh.vertices[e.vertices[0]].co + mesh.vertices[e.vertices[1]].co)
+                            (meshb.verts[e.verts[0].index].co + meshb.verts[e.verts[1].index].co)
                         /
                             2,
                         "e%d" % e.index
@@ -155,8 +177,9 @@ def draw_vertex_info(context) :
         if context.window_manager.vertex_vis_show_verts :
             if not context.window_manager.vertex_vis_show_backface :
                 vert_faces = {}
-                for f in mesh.polygons :
-                    for v in f.vertices :
+                for f in meshb.faces :
+                    for v in f.verts :
+                        v = v.index
                         if v not in vert_faces :
                             vert_faces[v] = set()
                         #end if
@@ -166,12 +189,12 @@ def draw_vertex_info(context) :
             else :
                 vert_faces = None
             #end if
-            gl.Color4f(0.56, 0.75, 0.56, 1)
-            for v in mesh.vertices :
+            gl.Color4f(*label_colours["vert"])
+            for v in meshb.verts :
                 if (
-                    context.window_manager.vertex_vis_show_backface
-                or
-                    any(face_visible(mesh.polygons[f]) for f in vert_faces[v.index])
+                        context.window_manager.vertex_vis_show_backface
+                    or
+                        any(face_visible(meshb.faces[f]) for f in vert_faces[v.index])
                 ) :
                     draw_label(v.co, "v%d" % v.index)
                 #end if

@@ -106,6 +106,14 @@ def draw_vertex_info(context) :
     obj = context.object
     meshb = None # to begin with
     if (
+            (
+                context.window_manager.vertex_vis_show_faces
+            or
+                context.window_manager.vertex_vis_show_edges
+            or
+                context.window_manager.vertex_vis_show_verts
+            )
+        and
             context.area.type == "VIEW_3D"
         and
             obj != None

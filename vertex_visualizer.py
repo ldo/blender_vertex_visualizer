@@ -173,7 +173,9 @@ def draw_vertex_info(context) :
                 if (
                         context.window_manager.vertex_vis_show_backface
                     or
-                        any(face_visible(meshb.faces[f]) for f in edge_faces[e.index])
+                            e.index in edge_faces
+                        and
+                            any(face_visible(meshb.faces[f]) for f in edge_faces[e.index])
                 ) :
                     draw_label \
                       (
@@ -205,7 +207,9 @@ def draw_vertex_info(context) :
                 if (
                         context.window_manager.vertex_vis_show_backface
                     or
-                        any(face_visible(meshb.faces[f]) for f in vert_faces[v.index])
+                            v.index in vert_faces
+                        and
+                            any(face_visible(meshb.faces[f]) for f in vert_faces[v.index])
                 ) :
                     draw_label(v.co, "v%d" % v.index)
                 #end if

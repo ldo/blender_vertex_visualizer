@@ -21,7 +21,7 @@ bl_info = \
     {
         "name" : "Vertex Visualizer",
         "author" : "Lawrence D'Oliveiro <ldo@geek-central.gen.nz>",
-        "version" : (0, 4, 1),
+        "version" : (0, 5),
         "blender" : (2, 7, 8),
         "location" : "View 3D > Properties Shelf",
         "description" :
@@ -129,6 +129,7 @@ def draw_vertex_info(context) :
         #end if
     #end if
     if meshb != None :
+        show_unselected = not context.window_manager.vertex_vis_selected_only
         gl.Enable(GL.BLEND)
         blf.size(font_id, 12, dpi)
         label_colours = \
@@ -148,7 +149,11 @@ def draw_vertex_info(context) :
         if context.window_manager.vertex_vis_show_faces :
             gl.Color4f(*label_colours["face"])
             for f in meshb.faces :
-                if context.window_manager.vertex_vis_show_backface or face_visible(f) :
+                if (
+                        (show_unselected or f.select)
+                    and
+                        (context.window_manager.vertex_vis_show_backface or face_visible(f))
+                ) :
                     draw_label(f.calc_center_median(), "f%d" % f.index)
                 #end if
             #end for
@@ -171,11 +176,15 @@ def draw_vertex_info(context) :
             gl.Color4f(*label_colours["edge"])
             for e in meshb.edges :
                 if (
-                        context.window_manager.vertex_vis_show_backface
-                    or
-                            e.index in edge_faces
-                        and
-                            any(face_visible(meshb.faces[f]) for f in edge_faces[e.index])
+                        (show_unselected or e.select)
+                    and
+                        (
+                            context.window_manager.vertex_vis_show_backface
+                        or
+                                e.index in edge_faces
+                            and
+                                any(face_visible(meshb.faces[f]) for f in edge_faces[e.index])
+                        )
                 ) :
                     draw_label \
                       (
@@ -205,11 +214,15 @@ def draw_vertex_info(context) :
             gl.Color4f(*label_colours["vert"])
             for v in meshb.verts :
                 if (
-                        context.window_manager.vertex_vis_show_backface
-                    or
-                            v.index in vert_faces
-                        and
-                            any(face_visible(meshb.faces[f]) for f in vert_faces[v.index])
+                        (show_unselected or v.select)
+                    and
+                        (
+                            context.window_manager.vertex_vis_show_backface
+                        or
+                                v.index in vert_faces
+                            and
+                                any(face_visible(meshb.faces[f]) for f in vert_faces[v.index])
+                        )
                 ) :
                     draw_label(v.co, "v%d" % v.index)
                 #end if
@@ -231,7 +244,17 @@ def add_props(self, context) :
             "Show %s" % propsuffix.title()
           )
     #end for
-    if not hasattr(bpy.types.WindowManager, "_vertex_vis_draw_handler") or bpy.types.WindowManager._vertex_vis_draw_handler == None :
+    the_col.prop \
+      (
+        context.window_manager,
+        "vertex_vis_selected_only",
+        "Selected Only"
+      )
+    if (
+            not hasattr(bpy.types.WindowManager, "_vertex_vis_draw_handler")
+        or
+            bpy.types.WindowManager._vertex_vis_draw_handler == None
+    ) :
         bpy.types.WindowManager._vertex_vis_draw_handler = bpy.types.SpaceView3D.draw_handler_add \
           (
             draw_vertex_info, # func
@@ -253,6 +276,11 @@ def register():
             bpy.props.BoolProperty(name = propname, default = False)
           )
     #end for
+    bpy.types.WindowManager.vertex_vis_selected_only = bpy.props.BoolProperty \
+      (
+        name = "vertex_vis_selected_only",
+        default = False
+      )
     bpy.types.VIEW3D_PT_view3d_display.append(add_props)
 #end register
 

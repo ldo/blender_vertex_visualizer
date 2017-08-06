@@ -21,7 +21,7 @@ bl_info = \
     {
         "name" : "Vertex Visualizer",
         "author" : "Lawrence D'Oliveiro <ldo@geek-central.gen.nz>",
-        "version" : (0, 4),
+        "version" : (0, 4, 1),
         "blender" : (2, 7, 8),
         "location" : "View 3D > Properties Shelf",
         "description" :

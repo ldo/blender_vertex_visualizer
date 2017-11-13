@@ -82,6 +82,7 @@ def draw_vertex_info(context) :
 
     region = context.region
     view3d = context.space_data.region_3d
+    obj = context.object
     pos_2d = lambda v : \
         view3d_utils.location_3d_to_region_2d(region, view3d, obj.matrix_world * v)
     xform = view3d.perspective_matrix
@@ -103,7 +104,6 @@ def draw_vertex_info(context) :
     #end draw_label
 
 #begin draw_vertex_info
-    obj = context.object
     meshb = None # to begin with
     if (
             (
